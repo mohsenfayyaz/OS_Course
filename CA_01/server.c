@@ -101,6 +101,10 @@ int max(int x, int y)
         return y;
 }
 
+int handleDownloadFromServer(int connfd){
+
+}
+
 int handleUploadToServer(int connfd){
     int valread;
     write(connfd, "Upload Accepted", sizeof("Upload Accepted"));
@@ -111,7 +115,6 @@ int handleUploadToServer(int connfd){
     bzero(fileName, sizeof(buffer));
     if(valread = read(connfd, fileName, sizeof(fileName)) < 0) {return -1;}
     write(connfd, "FileName Accepted", sizeof("FileName Accepted"));
-//    fileName[valread] = '\0';
     printf("Writing on %s\n", fileName);
 
     unlink(fileName);
@@ -120,7 +123,6 @@ int handleUploadToServer(int connfd){
 
 
     while (valread = read(connfd, buffer, sizeof(buffer)) > 0){
-//        buffer[valread] = '\0';
         printf("\n%s\n", buffer);
         if(strcmp(buffer, EOF_STR) == 0){
             break;
@@ -298,6 +300,8 @@ int runServer(int serverPort){
                     printf("->%s\n", buffer);
                     if(strcmp(buffer, UPLOAD_COMMAND) == 0){
                         handleUploadToServer(sd);
+                    }else{
+                        handleDownloadFromServer(sd);
                     }
 //                    send(sd , buffer , strlen(buffer) , 0 );
                 }
