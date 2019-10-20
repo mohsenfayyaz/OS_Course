@@ -2,7 +2,6 @@
 // Created by mohsenfayyaz on 10/19/19.
 //
 
-
 #include <stdio.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -343,7 +342,6 @@ int runServer(int serverPort){
                     }else if(strcmp(buffer, DOWNLOAD_COMMAND) == 0){
                         handleDownloadFromServer(sd);
                     }
-//                    send(sd , buffer , strlen(buffer) , 0 );
                 }
             }
         }
