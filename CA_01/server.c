@@ -30,6 +30,9 @@
 #define UPLOAD_COMMAND "upload"
 #define DOWNLOAD_COMMAND "download"
 
+#define SERVER_HAS_FILE "SERVER_HAS_FILE"
+#define SERVER_NOT_FOUND_FILE "SERVER_DOES_NOT_HAVE_FILE"
+
 #define EOF_STR "EOF"
 #define TRUE   1
 #define FALSE  0
@@ -37,6 +40,10 @@
 int globalHeartbeatPort;
 int globalHeartbeatSocketFD;
 struct sockaddr_in globalHeartbeatAddress;
+
+void print(char* buf) {
+    write(1, buf, strlen(buf));
+}
 
 // <HEARTBEAT ------------------------------
 void handleHeartbeatSignal(){
@@ -102,7 +109,40 @@ int max(int x, int y)
 }
 
 int handleDownloadFromServer(int connfd){
+    int valread;
+    write(connfd, "Download Accepted", sizeof("Download Accepted"));
 
+    char buffer[MAXLINE];
+    char fileName[MAXLINE];
+
+    bzero(fileName, sizeof(buffer));
+    if(valread = read(connfd, fileName, sizeof(fileName)) < 0) {return -1;}
+    
+    printf("Request for downloading %s\n", fileName);
+
+    int fd = open(fileName, O_RDONLY);
+    if (fd < 0) {
+        write(connfd, SERVER_NOT_FOUND_FILE, sizeof(SERVER_NOT_FOUND_FILE));
+        close(connfd);
+        return FALSE;
+    }
+
+    write(connfd, SERVER_HAS_FILE, sizeof(SERVER_HAS_FILE));
+    if(read(connfd, buffer, sizeof(buffer)) < 0) {print("RECIVEING SEND PLEASE FAILED");return FALSE;}
+
+    bzero(buffer, sizeof(buffer));
+    while(read(fd, buffer, sizeof(buffer)) > 0){
+        if(write(connfd, buffer, sizeof(buffer)) < 0) {print("uploading file failed"); return FALSE;}
+        bzero(buffer, sizeof(buffer));
+        if(read(connfd, buffer, sizeof(buffer)) < 0) {print("File part accept failed");return FALSE;}
+        bzero(buffer, sizeof(buffer));
+    }
+
+    write(connfd, EOF_STR, sizeof(EOF_STR));
+
+    printf("Someone downloaded %s\n", fileName);
+
+    close(fd);
 }
 
 int handleUploadToServer(int connfd){
@@ -151,7 +191,7 @@ int runServer(int serverPort){
     fd_set readfds;
 
     //a message
-    char *message = "ECHO Daemon v1.0 \r\n";
+    char *message = "SERVER: WELCOME TO SERVER \r\n";
 
     //initialise all client_socket[] to 0 so not checked
     for (i = 0; i < max_clients; i++)
@@ -300,7 +340,7 @@ int runServer(int serverPort){
                     printf("->%s\n", buffer);
                     if(strcmp(buffer, UPLOAD_COMMAND) == 0){
                         handleUploadToServer(sd);
-                    }else{
+                    }else if(strcmp(buffer, DOWNLOAD_COMMAND) == 0){
                         handleDownloadFromServer(sd);
                     }
 //                    send(sd , buffer , strlen(buffer) , 0 );

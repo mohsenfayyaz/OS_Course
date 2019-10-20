@@ -22,8 +22,11 @@
 
 #define UPLOAD_COMMAND "upload"
 #define DOWNLOAD_COMMAND "download"
-#define FILE_REQUEST_PREFIX "I_WANT ";
-#define FILE_SHARE_PREFIX "I_HAVE ";
+#define FILE_REQUEST_PREFIX "I_WANT "
+#define FILE_SHARE_PREFIX "I_HAVE "
+
+#define SERVER_HAS_FILE "SERVER_HAS_FILE"
+#define SERVER_NOT_FOUND_FILE "SERVER_DOES_NOT_HAVE_FILE"
 
 #define COMMAND_MAX_LENGTH 256
 #define FILE_MAX_LENGTH 2048
@@ -54,7 +57,7 @@ struct sockaddr_in createServerAddress(int port){
     // Filling server information
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(port);
-    servaddr.sin_addr.s_addr = INADDR_ANY;
+    servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); //INADDR_ANY
     return servaddr;
 }
 
@@ -155,20 +158,6 @@ int getServerPort(int heartbeatPort){
 
 // HEARTBEAT ------------------------------/>
 
-char* readFile(char* fileName){
-    int fd, sz;
-    char *c = (char *) calloc(100, sizeof(char));
-
-    fd = open(fileName, O_RDONLY);
-    if (fd < 0) { perror("r1"); exit(1); }
-
-    sz = read(fd, c, 10);
-    printf("called read(% d, c, 10).  returned that"
-           " %d bytes  were read.\n", fd, sz);
-    c[sz] = '\0';
-//    printf("Those bytes are as follows: % s\n", c);
-}
-
 int uploadToServer(char* fileName, int serverPort){
     int sockfd;
     char buffer[MAXLINE];
@@ -196,7 +185,7 @@ int uploadToServer(char* fileName, int serverPort){
     }
 
     int fd = open(fileName, O_RDONLY);
-    if (fd < 0) {perror("r1"); return FALSE;}
+    if (fd < 0) {perror("r1"); close(sockfd); return FALSE;}
 
     bzero(buffer, sizeof(buffer));
     if(read(sockfd, buffer, sizeof(buffer)) < 0) {print("reading welcome failed"); return FALSE;}
@@ -236,9 +225,82 @@ int uploadToServer(char* fileName, int serverPort){
     return TRUE;
 }
 
-int download(char* fileName, int heartbeatPort, int broadcastPort, int clientPort){
+int downloadFromServer(char* fileName, int serverPort){
+    int sockfd;
+    char buffer[MAXLINE];
+    struct sockaddr_in servaddr;
 
-    return TRUE;
+    int n, len;
+    // Creating socket file descriptor
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        print("socket creation failed");
+        return FALSE;
+    }
+
+    memset(&servaddr, 0, sizeof(servaddr));
+
+    // Filling server information
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(serverPort);
+    servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    if (connect(sockfd, (struct sockaddr*)&servaddr,
+                sizeof(servaddr)) < 0) {
+        print("\nError : Connect Failed \n");
+        return FALSE;
+    }
+
+    bzero(buffer, sizeof(buffer));
+    if(read(sockfd, buffer, sizeof(buffer)) < 0) {print("reading welcome failed"); return FALSE;}
+    print(buffer);
+
+    if(write(sockfd, DOWNLOAD_COMMAND, strlen(DOWNLOAD_COMMAND)) < 0) {print("download command sending failed");return FALSE;}
+    bzero(buffer, sizeof(buffer));
+    if(read(sockfd, buffer, sizeof(buffer)) < 0) {print("download command Accept failed");return FALSE;}
+
+    if(write(sockfd, fileName, strlen(fileName)) < 0) {print("fileName sending failed");return FALSE;}
+    bzero(buffer, sizeof(buffer));
+    if(read(sockfd, buffer, sizeof(buffer)) < 0) {print("fileName accept failed");return FALSE;} // SERVER_HAS... or SERVER_DOES_NOT...
+
+    if(strcmp(buffer, SERVER_HAS_FILE) == 0){ //IF SERVER HAS FILE
+        unlink(fileName);
+        int fd = open(fileName, O_WRONLY | O_APPEND | O_CREAT, 0644);
+        if (fd < 0) {perror("r1"); close(sockfd); exit(1);}
+
+        if(write(sockfd, "Send Please!", strlen("Send Please!")) < 0) {print("Send please failed");return FALSE;}
+
+        bzero(buffer, sizeof(buffer));
+        while (read(sockfd, buffer, sizeof(buffer)) > 0){
+            printf("\n%s\n", buffer);
+            if(strcmp(buffer, EOF_STR) == 0){
+                break;
+            }
+            write(fd, buffer, strlen(buffer));
+            write(sockfd, "File part Accepted", sizeof("File part Accepted"));
+            bzero(buffer, sizeof(buffer));
+        }
+
+        close(fd);
+        close(sockfd);
+        return TRUE;
+
+    }
+    
+
+    close(sockfd);
+    return FALSE;
+}
+
+int download(char* fileName, int heartbeatPort, int broadcastPort, int clientPort){
+    int serverPort = getServerPort(heartbeatPort);
+    if(serverPort > 0){
+        if(downloadFromServer(fileName, serverPort) == FALSE){
+            return FALSE;
+        }
+    }else{
+        return FALSE;
+    }
+    return FALSE;
 }
 
 int upload(char* fileName, int heartbeatPort, int broadcastPort, int clientPort){
@@ -424,10 +486,19 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
 
             if(strcmp(command, DOWNLOAD_COMMAND) == 0){
                 printf("%sing %s...\n", command, fileName);
-                download(fileName, heartbeatPort, broadcastPort, clientPort);
+                if(download(fileName, heartbeatPort, broadcastPort, clientPort) == TRUE){
+                    print("File downloaded successfully \n");
+                }else{
+                    print("File downloading failed \n");
+                }
+
             }else if(strcmp(command, UPLOAD_COMMAND) == 0){
                 printf("%sing %s...\n", command, fileName);
-                upload(fileName, heartbeatPort, broadcastPort, clientPort);
+                if(upload(fileName, heartbeatPort, broadcastPort, clientPort) == TRUE){
+                  print("File uploaded successfully \n");
+                }else{
+                    print("File uploading failed \n");
+                }
             }else{
                 print("Please use mentioned commands!\n");
             }
