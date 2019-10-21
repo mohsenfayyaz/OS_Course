@@ -8,6 +8,8 @@ server.o: server.c
 
 client.o: client.c
 	gcc client.c -o client
+	gcc client.c -o Client1/client
+	gcc client.c -o Client2/client
 
 clean:
 	-rm -f *.o

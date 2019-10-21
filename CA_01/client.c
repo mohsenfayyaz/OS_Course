@@ -25,7 +25,7 @@
 #define FILE_REQUEST_PREFIX "I_WANT "
 #define FILE_SHARE_PREFIX "I_HAVE "
 
-#define BROADCAST_FILENAME_INTERVAL 8
+#define BROADCAST_FILENAME_INTERVAL 5
 
 #define SERVER_HAS_FILE "SERVER_HAS_FILE"
 #define SERVER_NOT_FOUND_FILE "SERVER_DOES_NOT_HAVE_FILE"
@@ -44,6 +44,8 @@ char* globalFileNameToDownload = EMPTY;
 int globalBroadcastPort = -1;
 int globalBroadcastSocketFD;
 struct sockaddr_in globalBroadcastAddress;
+int globalBroadcastFileNameCounter = 0;
+#define MAX_FILENAME_BROADCAST_TIMES 15
 
 char* globalClientPortString;
 
@@ -67,6 +69,17 @@ struct sockaddr_in createServerAddress(int port){
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(port);
     servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); //INADDR_ANY
+    return servaddr;
+}
+
+struct sockaddr_in createBroadcastAddress(int port){
+    struct sockaddr_in servaddr;
+    memset(&servaddr, 0, sizeof(servaddr));
+
+    // Filling server information
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(port);
+    servaddr.sin_addr.s_addr = htonl(INADDR_BROADCAST); //INADDR_ANY
     return servaddr;
 }
 
@@ -120,7 +133,17 @@ void setTimeoutOption(int rcv_sock, int seconds){
 
 void setBroadcastOption(int sockfd){
     int opt = 1;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST | SO_REUSEPORT | SO_REUSEADDR, &opt, sizeof(opt)) < 0){
+    if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt)) < 0){
+        perror("Error: set broadcast option failed!");
+        close(sockfd);
+        exit(EXIT_FAILURE);
+    }
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0){
+        perror("Error: set broadcast option failed!");
+        close(sockfd);
+        exit(EXIT_FAILURE);
+    }
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0){
         perror("Error: set broadcast option failed!");
         close(sockfd);
         exit(EXIT_FAILURE);
@@ -144,7 +167,8 @@ int getServerPort(int heartbeatPort){
     struct sockaddr_in servaddr;
 
     sockfd = createUDPSocketFD();
-    servaddr = createServerAddress(heartbeatPort);
+    servaddr = createBroadcastAddress(heartbeatPort);
+
     setBroadcastOption(sockfd);
     bindSocketAndAddress(sockfd, servaddr);
     setTimeoutOption(sockfd, HEARTBEAT_TIMEOUT);
@@ -316,8 +340,17 @@ void broadcast(char* buffer){
 
 void broadCastFileNameToDownload(){
     if(globalFileNameToDownload == EMPTY){
+        globalBroadcastFileNameCounter = 0;
+        pause();
         return;
     }
+    if(globalBroadcastFileNameCounter > MAX_FILENAME_BROADCAST_TIMES){
+        print("NO PEER HAD THE FILE!\n");
+        globalBroadcastFileNameCounter = 0;
+        pause();
+        return;
+    }
+    globalBroadcastFileNameCounter++;
     char buffer[COMMAND_MAX_LENGTH];
     bzero(buffer, sizeof(buffer));
     strcat(buffer, DOWNLOAD_COMMAND);
@@ -325,14 +358,13 @@ void broadCastFileNameToDownload(){
     strcat(buffer, globalFileNameToDownload);
     broadcast(buffer);
 
-    alarm(BROADCAST_FILENAME_INTERVAL);
+    // alarm(BROADCAST_FILENAME_INTERVAL);
 }
 
 void downloadFromPeers(char* fileName){
     globalFileNameToDownload = fileName;
-    // broadCastFileNameToDownload();
     signal(SIGALRM, broadCastFileNameToDownload);
-    alarm(1);
+    broadCastFileNameToDownload();
 }
 
 int download(char* fileName, int heartbeatPort, int broadcastPort, int clientPort){
@@ -482,7 +514,7 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
     //------------------<CREATE BROADCAST SOCKET FOR UDP PEER2PEER----
     int broadcastSocket = createUDPSocketFD();
     setBroadcastOption(broadcastSocket);
-    struct sockaddr_in broadcastAddress = createServerAddress(broadcastPort);
+    struct sockaddr_in broadcastAddress = createBroadcastAddress(broadcastPort);
     if (bind(broadcastSocket, (struct sockaddr *)&broadcastAddress, sizeof(broadcastAddress))<0) {perror("Broadcast bind failed"); exit(EXIT_FAILURE);}
     puts("Waiting for interrupts on broadcast Port ...");
     globalBroadcastPort = broadcastPort;
@@ -498,7 +530,7 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
         close(globalBroadcastSocketFD);
         int broadcastSocket = createUDPSocketFD();
         setBroadcastOption(broadcastSocket);
-        struct sockaddr_in broadcastAddress = createServerAddress(broadcastPort);
+        struct sockaddr_in broadcastAddress = createBroadcastAddress(broadcastPort);
         if (bind(broadcastSocket, (struct sockaddr *)&broadcastAddress, sizeof(broadcastAddress))<0) {perror("Broadcast bind failed"); exit(EXIT_FAILURE);}
         // puts("Waiting for interrupts on broadcast Port ...");
         globalBroadcastPort = broadcastPort;
@@ -543,7 +575,8 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
             print("select error");
         }
         if(errno==EINTR){
-            print("AAAA");
+            print("Alarm Interrupt\n");
+            broadCastFileNameToDownload();
             continue; //IT's THE ALARM GOING FOR MASTER!!!
         }
 

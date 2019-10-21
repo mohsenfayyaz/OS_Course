@@ -68,7 +68,19 @@ void startHeartbeat(int heartbeatPort){
     }
 
     int opt = 1;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST | SO_REUSEPORT, &opt, sizeof(opt)) < 0){
+    if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt)) < 0){
+        close(sockfd);
+        perror("socket options failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0){
+        close(sockfd);
+        perror("socket options failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0){
         close(sockfd);
         perror("socket options failed");
         exit(EXIT_FAILURE);
@@ -78,7 +90,7 @@ void startHeartbeat(int heartbeatPort){
 
     // Filling server information
     servaddr.sin_family    = AF_INET; // IPv4
-    servaddr.sin_addr.s_addr = INADDR_ANY;
+    servaddr.sin_addr.s_addr = INADDR_BROADCAST;
     servaddr.sin_port = htons(heartbeatPort);
 
     // Bind the socket with the server address
@@ -216,7 +228,7 @@ int runServer(int serverPort){
 
     //type of socket created
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_addr.s_addr = inet_addr("127.0.0.1"); //INADDR_ANY
     address.sin_port = htons( serverPort );
 
     //bind the socket to localhost port serverPort
