@@ -45,7 +45,7 @@ int globalBroadcastPort = -1;
 int globalBroadcastSocketFD;
 struct sockaddr_in globalBroadcastAddress;
 int globalBroadcastFileNameCounter = 0;
-#define MAX_FILENAME_BROADCAST_TIMES 15
+#define MAX_FILENAME_BROADCAST_TIMES 3
 
 char* globalClientPortString;
 
@@ -341,24 +341,25 @@ void broadcast(char* buffer){
 void broadCastFileNameToDownload(){
     if(globalFileNameToDownload == EMPTY){
         globalBroadcastFileNameCounter = 0;
-        pause();
         return;
+    }else{
+        if(globalBroadcastFileNameCounter > MAX_FILENAME_BROADCAST_TIMES){
+            print("NO PEER HAD THE FILE!\n");
+            globalBroadcastFileNameCounter = 0;
+            globalFileNameToDownload = EMPTY;
+            return;
+        }else{
+            globalBroadcastFileNameCounter++;
+            char buffer[COMMAND_MAX_LENGTH];
+            bzero(buffer, sizeof(buffer));
+            strcat(buffer, DOWNLOAD_COMMAND);
+            strcat(buffer, " ");
+            strcat(buffer, globalFileNameToDownload);
+            broadcast(buffer);
+            alarm(BROADCAST_FILENAME_INTERVAL);
+        }
     }
-    if(globalBroadcastFileNameCounter > MAX_FILENAME_BROADCAST_TIMES){
-        print("NO PEER HAD THE FILE!\n");
-        globalBroadcastFileNameCounter = 0;
-        pause();
-        return;
-    }
-    globalBroadcastFileNameCounter++;
-    char buffer[COMMAND_MAX_LENGTH];
-    bzero(buffer, sizeof(buffer));
-    strcat(buffer, DOWNLOAD_COMMAND);
-    strcat(buffer, " ");
-    strcat(buffer, globalFileNameToDownload);
-    broadcast(buffer);
-
-    // alarm(BROADCAST_FILENAME_INTERVAL);
+    
 }
 
 void downloadFromPeers(char* fileName){
@@ -471,7 +472,18 @@ int handleDownloadFromServer(int connfd){ //GIVING OTHER PEERS WHAT YOU HAVE
 
 
 
-
+void reOpenBroadcastSocket(){
+    //------------------<CREATE BROADCAST SOCKET FOR UDP PEER2PEER----
+    close(globalBroadcastSocketFD);
+    int broadcastSocket = createUDPSocketFD();
+    setBroadcastOption(broadcastSocket);
+    struct sockaddr_in broadcastAddress = createBroadcastAddress(globalBroadcastPort);
+    if (bind(broadcastSocket, (struct sockaddr *)&broadcastAddress, sizeof(broadcastAddress))<0) {perror("Broadcast bind failed"); exit(EXIT_FAILURE);}
+    // puts("Waiting for interrupts on broadcast Port ...");
+    globalBroadcastSocketFD = broadcastSocket;
+    globalBroadcastAddress = broadcastAddress;
+    //------------------CREATE BROADCAST SOCKET FOR UDP PEER2PEER/>----
+}
 
 
 
@@ -486,7 +498,7 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
     fd_set readfds;
 
     //a message
-    char *message = "ECHO Daemon v1.0 \r\n";
+    char *message = "PEER SERVER: WELCOME TO SERVER \r\n";
 
     //initialise all client_socket[] to 0 so not checked
     for (i = 0; i < max_clients; i++)
@@ -510,13 +522,15 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
     puts("Waiting for connections on clientPort ...");
     //------------------CREATE CLIENT SOCKET FOR TCP FILE TRANSFER/>----
 
-    
+
+
     //------------------<CREATE BROADCAST SOCKET FOR UDP PEER2PEER----
+    // close(globalBroadcastSocketFD);
     int broadcastSocket = createUDPSocketFD();
     setBroadcastOption(broadcastSocket);
     struct sockaddr_in broadcastAddress = createBroadcastAddress(broadcastPort);
     if (bind(broadcastSocket, (struct sockaddr *)&broadcastAddress, sizeof(broadcastAddress))<0) {perror("Broadcast bind failed"); exit(EXIT_FAILURE);}
-    puts("Waiting for interrupts on broadcast Port ...");
+    // puts("Waiting for interrupts on broadcast Port ...");
     globalBroadcastPort = broadcastPort;
     globalBroadcastSocketFD = broadcastSocket;
     globalBroadcastAddress = broadcastAddress;
@@ -526,25 +540,13 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
     print("-> Please write your command (upload/download FileName):\n");
     while(TRUE)
     {
-        //------------------<CREATE BROADCAST SOCKET FOR UDP PEER2PEER----
-        close(globalBroadcastSocketFD);
-        int broadcastSocket = createUDPSocketFD();
-        setBroadcastOption(broadcastSocket);
-        struct sockaddr_in broadcastAddress = createBroadcastAddress(broadcastPort);
-        if (bind(broadcastSocket, (struct sockaddr *)&broadcastAddress, sizeof(broadcastAddress))<0) {perror("Broadcast bind failed"); exit(EXIT_FAILURE);}
-        // puts("Waiting for interrupts on broadcast Port ...");
-        globalBroadcastPort = broadcastPort;
-        globalBroadcastSocketFD = broadcastSocket;
-        globalBroadcastAddress = broadcastAddress;
-        //------------------CREATE BROADCAST SOCKET FOR UDP PEER2PEER/>----
-
         //clear the socket set
         FD_ZERO(&readfds);
 
         //add master socket to set
-        FD_SET(masterSocket, &readfds); /* Add CLIENT socket to descriptor vector */
         FD_SET(globalBroadcastSocketFD, &readfds); /* Add BROADCAST socket to descriptor vector */
         FD_SET(STDIN_FILENO, &readfds); /* Add keyboard to descriptor vector */
+        FD_SET(masterSocket, &readfds); /* Add CLIENT socket to descriptor vector */
         max_sd = max(masterSocket, globalBroadcastSocketFD);
 
         //add child sockets to set
@@ -574,14 +576,11 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
         {
             print("select error");
         }
-        if(errno==EINTR){
-            print("Alarm Interrupt\n");
-            broadCastFileNameToDownload();
-            continue; //IT's THE ALARM GOING FOR MASTER!!!
+        while (errno==EINTR && FD_ISSET(masterSocket, &readfds)) //Alarm Interrupt
+        {
+            activity = select( max_sd + 1 , &readfds , NULL , NULL , &tv);
         }
-
-        //If something happened on the master socket ,
-        //then its an incoming connection
+        
         if (FD_ISSET(masterSocket, &readfds))
         {
             print("MasterSocket Interrupt\n");
@@ -661,6 +660,11 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
             parseInput(&command, &fileName, buffer);
             // print(fileName);
             if(strcmp(command, DOWNLOAD_COMMAND) == 0){ //DOWNLOAD FILENAME on BROADCAST
+                if(strcmp(globalFileNameToDownload, fileName) == 0){
+                    reOpenBroadcastSocket();
+                    print("It's ME! :)\n");
+                    continue;
+                }
                 int fd = open(fileName, O_RDONLY);
                 if (fd > 0) { //WE HAVE THE FILE
                     char buffer[COMMAND_MAX_LENGTH];
@@ -668,6 +672,7 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
                     strcat(buffer, globalClientPortString);
                     strcat(buffer, " ");
                     strcat(buffer, fileName);
+                    reOpenBroadcastSocket();
                     broadcast(buffer);
                 }else{
                     perror("File not found");
@@ -679,8 +684,8 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
                         print("File downloaded successfully from peers\n");
                     }
                 }
-                
             }
+            reOpenBroadcastSocket();
         }
 
         if (FD_ISSET(STDIN_FILENO, &readfds)){
@@ -700,7 +705,7 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
                 }
 
             }else if(strcmp(command, UPLOAD_COMMAND) == 0){
-                printf("%sing %s...\n", command, fileName);
+                print(command); print("ing "); print(fileName); print("...\n");
                 if(upload(fileName, heartbeatPort, broadcastPort, clientPort) == TRUE){
                   print("File uploaded successfully \n");
                 }else{
