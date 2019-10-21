@@ -325,14 +325,14 @@ void broadCastFileNameToDownload(){
     strcat(buffer, globalFileNameToDownload);
     broadcast(buffer);
 
-    // alarm(BROADCAST_FILENAME_INTERVAL);
+    alarm(BROADCAST_FILENAME_INTERVAL);
 }
 
 void downloadFromPeers(char* fileName){
     globalFileNameToDownload = fileName;
-    broadCastFileNameToDownload();
-    // signal(SIGALRM, broadCastFileNameToDownload);
-    // alarm(1);
+    // broadCastFileNameToDownload();
+    signal(SIGALRM, broadCastFileNameToDownload);
+    alarm(1);
 }
 
 int download(char* fileName, int heartbeatPort, int broadcastPort, int clientPort){
@@ -540,7 +540,11 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
         // print("->s \n");
         if ((activity < 0) && (errno!=EINTR))
         {
-            printf("select error");
+            print("select error");
+        }
+        if(errno==EINTR){
+            print("AAAA");
+            continue; //IT's THE ALARM GOING FOR MASTER!!!
         }
 
         //If something happened on the master socket ,
