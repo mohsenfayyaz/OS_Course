@@ -182,8 +182,8 @@ int getServerPort(int heartbeatPort){
         return -1;
     }
 
-    printf("Server is alive -> Listening Port: %s\n", buffer);
-
+    // printf("Server is alive -> Listening Port: %s\n", buffer);
+    print("Server is alive\n");
     close(sockfd);
     return atoi(buffer);
 }
@@ -304,7 +304,8 @@ int downloadFromServer(char* fileName, int serverPort){
 
         bzero(buffer, sizeof(buffer));
         while (read(sockfd, buffer, sizeof(buffer)) > 0){
-            printf("\n%s\n", buffer);
+            // printf("\n%s\n", buffer);
+            print(buffer); print("\n");
             if(strcmp(buffer, EOF_STR) == 0){
                 break;
             }
@@ -439,7 +440,8 @@ int handleDownloadFromServer(int connfd){ //GIVING OTHER PEERS WHAT YOU HAVE
     bzero(fileName, sizeof(buffer));
     if(valread = read(connfd, fileName, sizeof(fileName)) < 0) {return -1;}
     
-    printf("Request for downloading %s\n", fileName);
+    // printf("Request for downloading %s\n", fileName);
+    print("Request for downloading "); print(fileName); print("\n");
 
     int fd = open(fileName, O_RDONLY);
     if (fd < 0) {
@@ -461,7 +463,8 @@ int handleDownloadFromServer(int connfd){ //GIVING OTHER PEERS WHAT YOU HAVE
 
     write(connfd, EOF_STR, sizeof(EOF_STR));
 
-    printf("Someone downloaded %s\n", fileName);
+    // printf("Someone downloaded %s\n", fileName);
+    print("Someone downloaded "); print(fileName); print("\n");
 
     close(fd);
 }
@@ -592,8 +595,9 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
             }
             print("aaa\n");
             //inform user of socket number - used in send and receive commands
-            printf("New connection , socket fd is %d , ip is : %s , port : %d\n" , new_socket , inet_ntoa(address.sin_addr) , ntohs
-                    (address.sin_port));
+            // printf("New connection , socket fd is %d , ip is : %s , port : %d\n" , new_socket , inet_ntoa(address.sin_addr) , ntohs
+            //         (address.sin_port));
+            print("New connection\n");
 
             //send new connection greeting message
             if( send(new_socket, message, strlen(message), 0) != strlen(message) )
@@ -610,8 +614,8 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
                 if( client_socket[i] == 0 )
                 {
                     client_socket[i] = new_socket;
-                    printf("Adding to list of sockets as %d\n" , i);
-
+                    // printf("Adding to list of sockets as %d\n" , i);
+                    print("Adding to list of sockets\n");
                     break;
                 }
             }
@@ -697,7 +701,8 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
             parseInput(&command, &fileName, line);
 
             if(strcmp(command, DOWNLOAD_COMMAND) == 0){
-                printf("%sing %s...\n", command, fileName);
+                // printf("%sing %s...\n", command, fileName);
+                print(command); print("ing "); print(fileName); print("...\n");
                 if(download(fileName, heartbeatPort, broadcastPort, clientPort) == TRUE){
                     print("File downloaded successfully \n");
                 }else{
@@ -733,8 +738,9 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
                     //Somebody disconnected , get his details and print
                     getpeername(sd , (struct sockaddr*)&address , \
                         (socklen_t*)&addrlen);
-                    printf("Host disconnected , ip %s , port %d \n" ,
-                           inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
+                    // printf("Host disconnected , ip %s , port %d \n" ,
+                    //        inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
+                    print("Host disconnected\n");
 
                     //Close the socket and mark as 0 in list for reuse
                     close( sd );
@@ -747,7 +753,8 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
                     //set the string terminating NULL byte on the end
                     //of the data read
                     buffer[valread] = '\0';
-                    printf("->%s\n", buffer);
+                    // printf("->%s\n", buffer);
+                    print(buffer); print("\n");
                     if(strncmp(buffer, DOWNLOAD_COMMAND, strlen(DOWNLOAD_COMMAND)) == 0){
                         handleDownloadFromServer(sd);
                     }
@@ -777,14 +784,14 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
 int main(int argc, char** argv) {
 
     if(argc != 4){
-        printf("ERROR: Client needs 3 arguments!\n");
+        print("ERROR: Client needs 3 arguments!\n");
         exit(-1);
     }
     int heartbeatPort = strtol(argv[1], NULL, 10);
     int broadcastPort = strtol(argv[2], NULL, 10);
     int clientPort = strtol(argv[3], NULL, 10);
     globalClientPortString = argv[3];
-    printf("Heartbeat Port: %d\nBroadcast Port: %d\nClient Port: %d\n", heartbeatPort, broadcastPort, clientPort);
+    // printf("Heartbeat Port: %d\nBroadcast Port: %d\nClient Port: %d\n", heartbeatPort, broadcastPort, clientPort);
 
     runClient(clientPort, heartbeatPort, broadcastPort);
 

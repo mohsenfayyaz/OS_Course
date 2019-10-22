@@ -129,7 +129,7 @@ int handleDownloadFromServer(int connfd){
     bzero(fileName, sizeof(buffer));
     if(valread = read(connfd, fileName, sizeof(fileName)) < 0) {return -1;}
     
-    printf("Request for downloading %s\n", fileName);
+    print("Request for downloading "); print(fileName); print("\n");
 
     int fd = open(fileName, O_RDONLY);
     if (fd < 0) {
@@ -151,7 +151,7 @@ int handleDownloadFromServer(int connfd){
 
     write(connfd, EOF_STR, sizeof(EOF_STR));
 
-    printf("Someone downloaded %s\n", fileName);
+    print("Someone downloaded "); print(fileName); print("\n");
 
     close(fd);
 }
@@ -166,7 +166,7 @@ int handleUploadToServer(int connfd){
     bzero(fileName, sizeof(buffer));
     if(valread = read(connfd, fileName, sizeof(fileName)) < 0) {return -1;}
     write(connfd, "FileName Accepted", sizeof("FileName Accepted"));
-    printf("Writing on %s\n", fileName);
+    print("Writing on "); print(fileName); print("\n");
 
     unlink(fileName);
     int fd = open(fileName, O_WRONLY | O_APPEND | O_CREAT, 0644);
@@ -174,7 +174,7 @@ int handleUploadToServer(int connfd){
 
 
     while (valread = read(connfd, buffer, sizeof(buffer)) > 0){
-        printf("\n%s\n", buffer);
+        print(buffer); print("\n");
         if(strcmp(buffer, EOF_STR) == 0){
             break;
         }
@@ -237,7 +237,7 @@ int runServer(int serverPort){
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
-    printf("Listener on port %d \n", PORT);
+    // printf("Listener on port %d \n", PORT);
 
     //try to specify maximum of 3 pending connections for the master socket
     if (listen(master_socket, 3) < 0)
@@ -248,7 +248,7 @@ int runServer(int serverPort){
 
     //accept the incoming connection
     addrlen = sizeof(address);
-    puts("Waiting for connections ...");
+    print("Waiting for connections ...");
 
     while(TRUE)
     {
@@ -280,7 +280,7 @@ int runServer(int serverPort){
 
         if ((activity < 0) && (errno!=EINTR))
         {
-            printf("select error");
+            print("select error");
         }
 
         //If something happened on the master socket ,
@@ -295,8 +295,9 @@ int runServer(int serverPort){
             }
 
             //inform user of socket number - used in send and receive commands
-            printf("New connection , socket fd is %d , ip is : %s , port : %d\n" , new_socket , inet_ntoa(address.sin_addr) , ntohs
-                    (address.sin_port));
+            // printf("New connection , socket fd is %d , ip is : %s , port : %d\n" , new_socket , inet_ntoa(address.sin_addr) , ntohs
+            //         (address.sin_port));
+            print("New connection\n");
 
             //send new connection greeting message
             if( send(new_socket, message, strlen(message), 0) != strlen(message) )
@@ -313,8 +314,8 @@ int runServer(int serverPort){
                 if( client_socket[i] == 0 )
                 {
                     client_socket[i] = new_socket;
-                    printf("Adding to list of sockets as %d\n" , i);
-
+                    // printf("Adding to list of sockets as %d\n" , i);
+                    print("Adding to list of sockets\n");
                     break;
                 }
             }
@@ -334,8 +335,9 @@ int runServer(int serverPort){
                     //Somebody disconnected , get his details and print
                     getpeername(sd , (struct sockaddr*)&address , \
                         (socklen_t*)&addrlen);
-                    printf("Host disconnected , ip %s , port %d \n" ,
-                           inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
+                    // printf("Host disconnected , ip %s , port %d \n" ,
+                    //        inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
+                    print("Host disconnected\n");
 
                     //Close the socket and mark as 0 in list for reuse
                     close( sd );
@@ -348,7 +350,7 @@ int runServer(int serverPort){
                     //set the string terminating NULL byte on the end
                     //of the data read
                     buffer[valread] = '\0';
-                    printf("->%s\n", buffer);
+                    print(buffer); print("\n");
                     if(strcmp(buffer, UPLOAD_COMMAND) == 0){
                         handleUploadToServer(sd);
                     }else if(strcmp(buffer, DOWNLOAD_COMMAND) == 0){
@@ -365,7 +367,7 @@ int runServer(int serverPort){
 int main(int argc, char** argv) {
 
     if(argc != 2){
-        printf("ERROR: Server needs 1 argument!\n");
+        print("ERROR: Server needs 1 argument!\n");
         exit(-1);
     }
     int heartbeatPort = strtol(argv[1], NULL, 10);
