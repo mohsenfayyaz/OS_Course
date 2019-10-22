@@ -373,6 +373,7 @@ int download(char* fileName, int heartbeatPort, int broadcastPort, int clientPor
     int serverPort = getServerPort(heartbeatPort);
     if(serverPort > 0){
         if(downloadFromServer(fileName, serverPort) == FALSE){
+            print("Server Failed Finding File\n");
             print("Trying Peer2Peer...\n");
             downloadFromPeers(fileName);
         }else{

@@ -46,7 +46,7 @@ void print(char* buf) {
 
 // <HEARTBEAT ------------------------------
 void handleHeartbeatSignal(){
-    if (sendto(globalHeartbeatSocketFD, SERVER_PORT, strlğÔ\åü ¡¨sşen(SERVER_PORT),
+    if (sendto(globalHeartbeatSocketFD, SERVER_PORT, strlğÔ\åüen(SERVER_PORT),
            MSG_CONFIRM, (const struct sockaddr *) &globalHeartbeatAddress,
            sizeof(globalHeartbeatAddress)) != strlen(SERVER_PORT)){
 
@@ -82,8 +82,8 @@ void startHeartbeat(int heartbeatPort){
 
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0){
         close(sockfd);
-        perror("socket options failedğÔ\åü");
-   ¡¨sş      exit(EXIT_FAILURE);
+        perror("socket options failed");
+  ğÔ\åü      exit(EXIT_FAILURE);
     }
 
     memset(&servaddr, 0, sizeof(servaddr));
@@ -127,7 +127,7 @@ int handleDownloadFromServer(int connfd){
     char fileName[MAXLINE];
 
     bzero(fileName, sizeof(buffer));
-    if(vğÔ\åüalread = rea ¡¨sşd(connfd, fileName, sizeof(fileName)) < 0) {return -1;}
+    if(valread = reağÔ\åüd(connfd, fileName, sizeof(fileName)) < 0) {return -1;}
     
     print("Request for downloading "); print(fileName); print("\n");
 
@@ -156,8 +156,8 @@ int handleDownloadFromServer(int connfd){
     close(fd);
 }
 
-int handleUploadToServğÔ\åüer(int connfd){
-   ¡¨sş  int valread;
+int handleUploadToServer(int connfd){
+  ğÔ\åü  int valread;
     write(connfd, "Upload Accepted", sizeof("Upload Accepted"));
 
     char buffer[MAXLINE];
@@ -191,7 +191,7 @@ int handleUploadToServğÔ\åüer(int connfd){
 
 int runServer(int serverPort){
     int opt = TRUE;
-    int master_socket , addrleğÔ\åün , new_socket , client_ ¡¨sşsocket[30] ,
+    int master_socket , addrlen , new_socket , client_ğÔ\åüsocket[30] ,
             max_clients = 30 , activity, i , valread , sd;
     int max_sd;
     struct sockaddr_in address;
@@ -228,7 +228,7 @@ int runServer(int serverPort){
 
     //type of socket created
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_ağÔ\åüddr("127.0.0.1"); //INADDR_ANY ¡¨sş
+    address.sin_addr.s_addr = inet_addr("127.0.0.1"); //INADDR_ANYğÔ\åü
     address.sin_port = htons( serverPort );
 
     //bind the socket to localhost port serverPort
@@ -265,9 +265,9 @@ int runServer(int serverPort){
             //socket descriptor
             sd = client_socket[i];
 
-            //if valid socket descriptor then add to reğÔ\åüad list
+            //if valid socket descriptor then add to read list
             if(sd > 0)
-      ¡¨sş           FD_SET( sd , &readfds);
+     ğÔ\åü           FD_SET( sd , &readfds);
 
             //highest file descriptor number, need it for the select function
             if(sd > max_sd)
@@ -295,7 +295,7 @@ int runServer(int serverPort){
             }
 
             //inform user of socket number - used in send and receive commands
-            // printf("New connection , sockeğÔ\åüt fd is %d , ip is : %s , port : %d\n" , n ¡¨sşew_socket , inet_ntoa(address.sin_addr) , ntohs
+            // printf("New connection , socket fd is %d , ip is : %s , port : %d\n" , nğÔ\åüew_socket , inet_ntoa(address.sin_addr) , ntohs
             //         (address.sin_port));
             print("New connection\n");
 
@@ -324,9 +324,9 @@ int runServer(int serverPort){
         //else its some IO operation on some other socket
         for (i = 0; i < max_clients; i++)
         {
-            sd = clienğÔ\åüt_socket[i];
+            sd = client_socket[i];
 
-            if (FD_ISSET( sd , &re ¡¨sşadfds))
+            if (FD_ISSET( sd , &reğÔ\åüadfds))
             {
                 //Check if it was for closing , and also read the
                 //incoming message
@@ -348,9 +348,9 @@ int runServer(int serverPort){
                 else
                 {
                     //set the string terminating NULL byte on the end
-                    //of the data readğÔ\åü
+                    //of the data read
                     buffer[valread] = '\0';
-          ¡¨sş           print(buffer); print("\n");
+         ğÔ\åü           print(buffer); print("\n");
                     if(strcmp(buffer, UPLOAD_COMMAND) == 0){
                         handleUploadToServer(sd);
                     }else if(strcmp(buffer, DOWNLOAD_COMMAND) == 0){
