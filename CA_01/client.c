@@ -25,8 +25,6 @@
 #define FILE_REQUEST_PREFIX "I_WANT "
 #define FILE_SHARE_PREFIX "I_HAVE "
 
-#define BROADCAST_FILENAME_INTERVAL 5
-
 #define SERVER_HAS_FILE "SERVER_HAS_FILE"
 #define SERVER_NOT_FOUND_FILE "SERVER_DOES_NOT_HAVE_FILE"
 
@@ -45,7 +43,9 @@ int globalBroadcastPort = -1;
 int globalBroadcastSocketFD;
 struct sockaddr_in globalBroadcastAddress;
 int globalBroadcastFileNameCounter = 0;
-#define MAX_FILENAME_BROADCAST_TIMES 3
+
+#define BROADCAST_FILENAME_INTERVAL 6
+#define MAX_FILENAME_BROADCAST_TIMES 5
 
 char* globalClientPortString;
 
@@ -357,7 +357,7 @@ void broadCastFileNameToDownload(){
             strcat(buffer, " ");
             strcat(buffer, globalFileNameToDownload);
             broadcast(buffer);
-            alarm(BROADCAST_FILENAME_INTERVAL);
+            // alarm(BROADCAST_FILENAME_INTERVAL);
         }
     }
     
@@ -365,7 +365,7 @@ void broadCastFileNameToDownload(){
 
 void downloadFromPeers(char* fileName){
     globalFileNameToDownload = fileName;
-    signal(SIGALRM, broadCastFileNameToDownload);
+    // signal(SIGALRM, broadCastFileNameToDownload);
     broadCastFileNameToDownload();
 }
 
@@ -541,11 +541,28 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
 
     print("-----------------------------\n");
     print("-> Please write your command (upload/download FileName):\n");
+    
+    clock_t start, end;
+    start = clock();
     while(TRUE)
     {
+        end = clock();
+        // int msec = difference * 1000 / CLOCKS_PER_SEC;
+        // printf("|%ld|", clock());
+        // if(msec > 1000){
+        //     print("aaa");
+        //     before = clock();
+        // }
+        if(end - start > BROADCAST_FILENAME_INTERVAL*100){
+            // print("sss");
+            // printf("start = %d, end = %d\n", start, end);
+            reOpenBroadcastSocket();
+            broadCastFileNameToDownload();
+            start = clock();
+        }
+        
         //clear the socket set
         FD_ZERO(&readfds);
-
         //add master socket to set
         FD_SET(globalBroadcastSocketFD, &readfds); /* Add BROADCAST socket to descriptor vector */
         FD_SET(STDIN_FILENO, &readfds); /* Add keyboard to descriptor vector */
@@ -581,6 +598,7 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
         }
         while (errno==EINTR && FD_ISSET(masterSocket, &readfds)) //Alarm Interrupt
         {
+            print("ALARM INTERRUPT!");
             activity = select( max_sd + 1 , &readfds , NULL , NULL , &tv);
         }
         
@@ -665,7 +683,7 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
             // print(fileName);
             if(strcmp(command, DOWNLOAD_COMMAND) == 0){ //DOWNLOAD FILENAME on BROADCAST
                 if(strcmp(globalFileNameToDownload, fileName) == 0){
-                    reOpenBroadcastSocket();
+                    // reOpenBroadcastSocket();
                     print("It's ME! :)\n");
                     continue;
                 }
@@ -689,7 +707,7 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
                     }
                 }
             }
-            reOpenBroadcastSocket();
+            // reOpenBroadcastSocket();
         }
 
         if (FD_ISSET(STDIN_FILENO, &readfds)){
@@ -727,7 +745,7 @@ int runClient(int clientPort, int heartbeatPort, int broadcastPort){
         for (i = 0; i < max_clients; i++)
         {
             sd = client_socket[i];
-            if(sd == STDIN_FILENO || sd == broadcastPort) continue;
+            if(sd == STDIN_FILENO || sd == globalBroadcastPort) continue;
             if (FD_ISSET( sd , &readfds))
             {
                 print("Client Interrupt\n");
