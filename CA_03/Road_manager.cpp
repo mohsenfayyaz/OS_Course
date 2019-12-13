@@ -1,5 +1,29 @@
 #include "Road_manager.hpp"
 
+void t(){
+
+}
+void Road_manager::start_simulation(){
+    std::vector<std::thread> threads;
+    int car_id = 0;
+    for(int i = 0; i < paths.size(); i++){
+        int path_id = i;
+        for(int j = 0; j < paths[i].init_num_of_cars; j++){
+            // Constructs the new thread and runs it. Does not block execution.
+            threads.push_back(std::thread(run_car, car_id, path_id, paths[i]));
+            car_id++;
+        }
+    }
+
+    for(int i = 0; i < threads.size(); i++){
+        threads[i].join();
+    }
+}
+
+void Road_manager::run_car(int car_id, int path_id, Path path){
+    std::cout << car_id << std::endl;
+}
+
 void Road_manager::parse_input_file(std::string file_path){
     std::ifstream infile;
     infile.open(file_path);

@@ -7,6 +7,7 @@ int main(){
     Road_manager my_road_manager = Road_manager();
     try{
         my_road_manager.parse_input_file(INPUT_PATH);
+        my_road_manager.start_simulation();
 
     }catch(std::string e){
         std::cerr << e << std::endl;

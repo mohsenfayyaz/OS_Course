@@ -1,4 +1,4 @@
-CXX=g++ -std=c++11
+CXX=g++ -std=c++11 -pthread
 all: main.o Monitor.o Road_manager.o
 	$(CXX) main.o Monitor.o Road_manager.o
 
