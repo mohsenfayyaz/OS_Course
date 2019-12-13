@@ -13,3 +13,6 @@ int main(){
         std::cerr << e << std::endl;
     }
 }
+
+// Initialize static member of class
+Monitor* Road_manager::my_monitor = NULL;

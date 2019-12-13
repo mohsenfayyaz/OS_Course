@@ -1,9 +1,15 @@
+#ifndef __MONITOR__
+#define __MONITOR__
+
 #include <iostream>
 #include <vector>
 #include <string>
+#include <semaphore.h> 
+#include <unistd.h> 
 
 class Road{
     public:
+        int id;
         std::string start, end;
         double hardness;
         
@@ -39,11 +45,19 @@ class Path{
 class Monitor{
     private:
         std::vector<Road> roads;  //Each road is a waitable condition
+        std::vector<sem_t> semaphores;
+        double aggregate_pollution = 0;
+        sem_t aggregate_pollution_mutex;
+        int find_road_index(Road road);
+        double calculate_pollution(double car_pollution, double hardness);
 
     public:
-        Monitor(std::vector<Road> _roads){
-            roads = _roads;
-        }
-        void get_path_access();
+        Monitor(std::vector<Road> _roads);
+        ~Monitor();
+
+        std::pair<double, double>  drive_to_road(Road road, double car_pollution);  // Returns calculated pollution
         void realease_path_access();
 };
+
+
+#endif

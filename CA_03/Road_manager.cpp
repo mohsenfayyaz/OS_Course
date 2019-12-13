@@ -4,6 +4,8 @@ void t(){
 
 }
 void Road_manager::start_simulation(){
+    srand (time(NULL));
+    my_monitor = new Monitor(roads);
     std::vector<std::thread> threads;
     int car_id = 0;
     for(int i = 0; i < paths.size(); i++){
@@ -21,7 +23,43 @@ void Road_manager::start_simulation(){
 }
 
 void Road_manager::run_car(int car_id, int path_id, Path path){
-    std::cout << car_id << std::endl;
+    std::cout << "Running car #" << car_id << std::endl;
+    /* initialize random seed: */
+    double car_pollution = (double)rand() / RAND_MAX * 9 + 1;  // 1 <= p <= 10
+
+    std::stringstream file_path;
+    file_path << path_id << "-" << car_id;
+    std::ofstream myfile;
+    myfile.open(file_path.str());
+
+    for(int i = 0; i < path.path.size(); i++){
+        uint64_t enterance_time = timeSinceEpochMillisec();
+
+        std::pair<double, double> p = my_monitor->drive_to_road(path.path[i], car_pollution);
+        double calculated_pollution = p.first;
+        double aggregate_pollution = p.second;
+
+        uint64_t exit_time = timeSinceEpochMillisec();
+
+        std::stringstream ss;
+        ss << path.path[i].start << ", " << enterance_time << ", " 
+            << path.path[i].end << ", " << exit_time << ", " 
+            << calculated_pollution << ", " << aggregate_pollution << std::endl;
+        myfile << ss.str();
+    }
+    myfile.close();
+}
+
+void Road_manager::write_to_file(std::string s, std::string file_path){
+    std::ofstream myfile;
+    myfile.open(file_path);
+    myfile << s;
+    myfile.close();
+}
+
+uint64_t Road_manager::timeSinceEpochMillisec(){
+  using namespace std::chrono;
+  return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
 void Road_manager::parse_input_file(std::string file_path){
