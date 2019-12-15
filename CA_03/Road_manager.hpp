@@ -10,7 +10,8 @@
 #include "Monitor.hpp"
 
 #define SEPERATOR "#"
-#define DELIMITER " - "
+#define DELIMITER "-"
+#define OUTPUT_DELIMITER ","
 
 class Road_manager{
     private:

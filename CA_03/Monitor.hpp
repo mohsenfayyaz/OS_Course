@@ -6,6 +6,9 @@
 #include <string>
 #include <semaphore.h> 
 #include <unistd.h> 
+#include <math.h>
+#include<tuple>
+#include <chrono>
 
 class Road{
     public:
@@ -55,7 +58,7 @@ class Monitor{
         Monitor(std::vector<Road> _roads);
         ~Monitor();
 
-        std::pair<double, double>  drive_to_road(Road road, double car_pollution);  // Returns calculated pollution
+        std::tuple<double, double, uint64_t, uint64_t> drive_to_road(Road road, double car_pollution);  // Returns calculated pollution
         void realease_path_access();
 };
 
